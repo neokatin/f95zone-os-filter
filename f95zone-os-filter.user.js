@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         F95Zone OS Filter
 // @namespace    https://github.com/neokatin/f95zone-os-filter
-// @version      2.0.1
+// @version      2.1.0
 // @description  Filter F95Zone game listings (Latest Updates, game forums, search, watched/what's new) by verified OS support: Windows, macOS, Linux, Android.
 // @author       neokatin
 // @license      MIT
@@ -25,8 +25,9 @@
  *   Engine (Ren'Py, Unity, ...) is NEVER used to infer support. If neither source
  *   mentions an OS, the game is "Unknown" and handled by your Unknown policy.
  *
- * Metadata is fetched from each thread page (throttled, cached for 7 days, and
- * re-checked when the listed version changes).
+ * Each thread's first post is read through the forum's small preview endpoint
+ * (falling back to the full thread page), throttled, cached for 7 days, and
+ * re-checked when the listed version changes.
  *
  * WHERE THE CONTROLS LIVE:
  *   Latest Updates  -> an "Operating system" section in the site's Filters drawer,
@@ -342,7 +343,77 @@
     updateStatsSoon();
   }
 
+  // XenForo's security token, needed for the thread preview endpoint. Forum pages
+  // carry it on <html>; Latest Updates doesn't, so it is read once from a small
+  // forum page and kept for the browser session.
+  const CSRF_KEY = 'osf_csrf';
+  let csrfPromise = null;
+  function getCsrf(refresh) {
+    if (!refresh) {
+      const onPage = document.documentElement.dataset.csrf;
+      if (onPage) return Promise.resolve(onPage);
+      try {
+        const stored = sessionStorage.getItem(CSRF_KEY);
+        if (stored) return Promise.resolve(stored);
+      } catch (e) {}
+    }
+    if (!csrfPromise) {
+      csrfPromise = fetch(`${location.origin}/help/`, { credentials: 'include' })
+        .then((r) => r.text())
+        .then((html) => {
+          const token = (html.match(/data-csrf="([^"]+)"/) || [])[1] || null;
+          try {
+            if (token) sessionStorage.setItem(CSRF_KEY, token);
+          } catch (e) {}
+          return token;
+        })
+        .catch(() => null)
+        .finally(() => setTimeout(() => (csrfPromise = null), 0));
+    }
+    return csrfPromise;
+  }
+
+  // The thread preview (what the forum shows when hovering a thread title) holds
+  // the whole first post at ~1/20th the size of the thread page. Returns
+  // { parsed }, { rateLimited: true }, or null to fall back to the full page.
+  async function fetchPreview(tid, refreshedToken) {
+    const token = await getCsrf(refreshedToken);
+    if (!token) return null;
+    const qs = new URLSearchParams({
+      _xfRequestUri: location.pathname,
+      _xfWithData: '1',
+      _xfToken: token,
+      _xfResponseType: 'json',
+    });
+    const res = await fetch(`${location.origin}/threads/${tid}/preview?${qs}`, {
+      credentials: 'include',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    if (res.status === 429 || res.status === 503) return { rateLimited: true };
+    if (res.status === 400 && !refreshedToken) return fetchPreview(tid, true); // token expired
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => null);
+    const html = data && data.html && data.html.content;
+    if (!html) return null;
+    const parsed = parseThreadHtml(html);
+    // "No OS found" is confirmed against the full page before calling it unknown.
+    if (parsed.error || !Object.keys(parsed.os).length) return null;
+    return { parsed };
+  }
+
   async function fetchThread(tid) {
+    try {
+      const preview = await fetchPreview(tid);
+      if (preview && preview.rateLimited) {
+        pauseFetching();
+        queue.add(tid); // retry later
+        return;
+      }
+      if (preview) return storeResult(tid, preview.parsed);
+    } catch (e) {
+      // fall through to the full thread page
+    }
+
     let res;
     try {
       res = await fetch(`${location.origin}/threads/${tid}/`, { credentials: 'include' });
@@ -365,6 +436,10 @@
       if (parsed.error === 'blocked') pauseFetching();
       return;
     }
+    storeResult(tid, parsed);
+  }
+
+  function storeResult(tid, parsed) {
     backoff = 0;
     const known = Object.keys(parsed.os).length > 0;
     cache[tid] = { os: parsed.os, raw: parsed.raw, ver: listedVersion.get(tid) || '', t: Date.now(), unknown: !known };

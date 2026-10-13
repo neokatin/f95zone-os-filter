@@ -38,7 +38,7 @@ The game engine (Ren'Py, Unity, …) is never used to infer support. Lines like 
 - Hidden count, plus **Peek** to temporarily reveal hidden games
 - Works with pages that update in place (Latest Updates paging, new forum rows)
 - Settings are saved; OS info is cached for 7 days and re-checked when a game's version changes
-- Thread pages are fetched politely (two at a time, with a delay), and fetching pauses if the site rate-limits
+- Lightweight: each game is checked through the forum's thread preview (about 1/20th the size of the thread page), two at a time with a delay, and checking pauses if the site rate-limits
 - Options: turn off tags, turn off automatic checking, count "PC" as Windows, choose which pages it runs on, clear the cache
 - Keyboard shortcut: **Alt+O**
 
