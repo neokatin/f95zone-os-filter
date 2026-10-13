@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         F95Zone OS Filter
 // @namespace    https://github.com/neokatin/f95zone-os-filter
-// @version      2.0.0
+// @version      2.0.1
 // @description  Filter F95Zone game listings (Latest Updates, game forums, search, watched/what's new) by verified OS support: Windows, macOS, Linux, Android.
 // @author       neokatin
 // @license      MIT
@@ -641,7 +641,7 @@
     .osf-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--osf-muted); }
     .osf-stats { font-size: 12px; color: var(--osf-faint); }
     .osf-stats b { color: var(--osf-muted); font-weight: 600; }
-    .osf-link { all: unset; cursor: pointer; font-size: 12px; color: var(--osf-muted); }
+    .osf-link { all: unset; cursor: pointer; font-size: 12px; color: var(--osf-muted); white-space: nowrap; }
     .osf-link:hover, .osf-link.is-on { color: var(--osf-accent); }
     .osf-options { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--osf-line); font-size: 12px; color: var(--osf-muted); }
     .osf-options[hidden] { display: none !important; }
@@ -682,6 +682,8 @@
     .osf-chip:hover { color: var(--osf-text); }
     .osf-chip.is-on { color: var(--osf-accent); border-color: var(--osf-accent); background: var(--osf-bg); }
     .osf-bar .osf-spacer { flex: 1; }
+    .osf-bar .osf-stats { white-space: nowrap; }
+    .osf-bar .osf-foot { flex: 1 0 auto; justify-content: flex-end; gap: 14px; margin: 0; }
     .osf-bar .osf-options { flex-basis: 100%; margin-top: 2px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 18px; }
     .osf-bar .osf-options h5, .osf-bar .osf-options .osf-row, .osf-bar .osf-options .osf-note { grid-column: 1 / -1; }
 
@@ -856,9 +858,7 @@
       }, icon(o.icon), o.label));
     }
     const right = footerRow();
-    right.style.margin = '0';
-    right.style.flex = '1';
-    right.style.justifyContent = 'flex-end';
+    right.classList.add('osf-foot');
     bar.append(
       el('span', { class: 'osf-bar-label' }, 'OS'),
       chips,

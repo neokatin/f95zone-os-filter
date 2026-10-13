@@ -9,6 +9,12 @@ It works on Latest Updates, the game forums, search results, and the Watched / W
 
 Each game gets a small tag with the OS logos it supports.
 
+![Latest Updates with the OS filter in the Filters drawer and OS tags on each game](screenshots/latest-updates.jpg)
+
+![Game forum with the OS filter row and OS tags after each thread title](screenshots/forum-filter-bar.jpg)
+
+<sub>Cover images and avatars are blurred in these screenshots.</sub>
+
 ## Install
 
 1. Install [Tampermonkey](https://www.tampermonkey.net/) in your browser.
